@@ -139,18 +139,16 @@ hierFormula$AddChild("level2", formula=~cosinor(hour, period=24))
 hierBeta <- data.tree::Node$new("turkey beta")
 hierBeta$AddChild("level1",beta=matrix(c(-18.585, -2.86, -2.551, -1.641, -2.169, -2.415),1,length(hierStates$children)*(length(hierStates$children)-1)))
 hierBeta$AddChild("level2")
-hierBeta$level2$AddChild("Winter",beta=matrix(c(-2.562, -3.403,  2.765, -1.607,  2.273,  4.842, 
-                                                   -0.665,  -0.26, -0.681, -0.149, -2.728, -2.798, 
-                                                   -0.027,   0.26,  0.191,  0.667,  0.123, -0.262),3,length(hierStates$resForage$children)*(length(hierStates$resForage$children)-1),byrow=TRUE))
+hierBeta$level2$AddChild("Winter",beta=matrix(c(rep(c(, 2,  2.765, -1.607,  2.273,  4.842),4),4,length(hierStates$resForage$children)*(length(hierStates$resForage$children)-1),byrow=TRUE))
 hierBeta$level2$AddChild("Dispersal",beta=matrix(c(-2.156, -3.662,   3.01,  0.597, -0.313,  2.897, 
                                                    0.067,  -1.22, -0.799, -0.797,   0.15,  0.379, 
-                                                   -0.112, -0.195, -0.269, -0.215,  1.539,  0.728),3,length(hierStates$mobForage$children)*(length(hierStates$mobForage$children)-1),byrow=TRUE))
+                                                   -0.112, -0.195, -0.269, -0.215,  1.539,  0.728),4,length(hierStates$mobForage$children)*(length(hierStates$mobForage$children)-1),byrow=TRUE))
 hierBeta$level2$AddChild("PreNesting",  beta=matrix(c( -2.53, -4.279,  2.507, -0.228, 10.803, 12.873, 
                                                     -0.04,  1.221, -0.301,  0.284, -0.106, -0.077, 
-                                                    0.629, -0.226, -0.253, -0.303,  0.011,  0.036),3,length(hierStates$transit$children)*(length(hierStates$transit$children)-1),byrow=TRUE))
+                                                    0.629, -0.226, -0.253, -0.303,  0.011,  0.036),4,length(hierStates$transit$children)*(length(hierStates$transit$children)-1),byrow=TRUE))
 hierBeta$level2$AddChild("Nesting",  beta=matrix(c( -2.53, -4.279,  2.507, -0.228, 10.803, 12.873, 
                                                        -0.04,  1.221, -0.301,  0.284, -0.106, -0.077, 
-                                                       0.629, -0.226, -0.253, -0.303,  0.011,  0.036),3,length(hierStates$transit$children)*(length(hierStates$transit$children)-1),byrow=TRUE))
+                                                       0.629, -0.226, -0.253, -0.303,  0.011,  0.036),4,length(hierStates$transit$children)*(length(hierStates$transit$children)-1),byrow=TRUE))
 
 
 
