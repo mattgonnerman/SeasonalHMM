@@ -187,7 +187,7 @@ for(i in 1:length(crawllist)){
 }
 
 wintertonest1_cleaned <- wintertonest1_prepped %>%
-  dplyr::select(ID, step, angle, Timestamp, wintercenter.dist, wintercenter.angle, nest1.dist, nest1.angle, YDay)
+  dplyr::select(ID, x, y, step, angle, Timestamp, wintercenter.dist, wintercenter.angle, nest1.dist, nest1.angle, YDay)
 
 #check output
 summary(wintertonest1_cleaned)
@@ -218,4 +218,11 @@ level2i.df <- level1.df %>% mutate(BMV_mean = NA, level = "2i")
 level2.df <- wintertonest1_cleaned %>% mutate(BMV_mean = NA, level = "2")
 
 turk.hhmm.data <- rbind(level1.df, level2i.df, level2.df) %>%
-  arrange(ID, Timestamp)
+  arrange(ID, Timestamp) %>%
+  mutate(hour = hour(Timestamp))
+
+summary(turk.hhmm.data)
+
+unique(turk.hhmm.data$level)
+
+write.csv(turk.hhmm.data, "HHMM Turkey Data.csv", row.names = F)
