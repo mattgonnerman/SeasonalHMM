@@ -186,12 +186,36 @@ for(i in 1:length(crawllist)){
   }
 }
 
+wintertonest1_cleaned <- wintertonest1_prepped %>%
+  dplyr::select(ID, step, angle, Timestamp, wintercenter.dist, wintercenter.angle, nest1.dist, nest1.angle, YDay)
+
 #check output
-summary(wintertonest1_prepped)
+summary(wintertonest1_cleaned)
 
-
+#################################################################################
 ### For Hierarchical Data, need to create levels within the data
 ## We want to average BMV by day
 
-BMV.df %>%
-  
+bmvmean.df <- BMV.df %>%
+  mutate(Date = as.Date(Timestamp)) %>%
+  group_by(ID, Date) %>%
+  summarize(Timestamp2 = first(Timestamp),
+            BMV_mean = mean(BMV))
+
+wintertonestTS <- wintertonest1_cleaned %>%
+  mutate(Date = as.Date(Timestamp)) %>%
+  group_by(ID, Date) %>%
+  summarize(Timestamp = first(Timestamp))
+
+bmvmean.full.df <- as.data.frame(merge(wintertonestTS, bmvmean.df, by = c("ID", "Date"), all.x = T) %>% dplyr::select(-Date, -Timestamp2) %>%
+  group_by(ID) %>%
+  mutate(BMV_mean = ifelse(Timestamp == last(Timestamp) & is.na(BMV_mean), tail(BMV_mean, n=2L)[1], BMV_mean),
+         BMV_mean = ifelse(is.na(BMV_mean), first(na.omit(BMV_mean)), BMV_mean))
+  )
+
+level1.df <- merge(bmvmean.full.df, wintertonest1_cleaned, by = c("ID", "Timestamp"), all.x = T) %>% mutate(level = "1")
+level2i.df <- level1.df %>% mutate(BMV_mean = NA, level = "2i")
+level2.df <- wintertonest1_cleaned %>% mutate(BMV_mean = NA, level = "2")
+
+turk.hhmm.data <- rbind(level1.df, level2i.df, level2.df) %>%
+  arrange(ID, Timestamp)
