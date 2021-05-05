@@ -92,7 +92,7 @@ move.df.final <- raw.move.df %>%
 
 ### Need to have coordinates in UTM not LL
 # project to UTM coordinates using package rgdal
-llcoord <- SpatialPoints(move.df.final[,1:2], proj4string=CRS(projection(turkeygps)))
+llcoord <- SpatialPoints(move.df.final[,2:1], proj4string=CRS(projection(turkeygps)))
 utmcoord <- spTransform(llcoord,CRS("+proj=utm +zone=19 ellps=WGS84"))
 
 # add UTM locations to data frame
@@ -192,6 +192,7 @@ wintertonest1_cleaned <- wintertonest1_prepped %>%
 #check output
 summary(wintertonest1_cleaned)
 
+save(wintertonest1_cleaned, file = "hmminput.RData")
 #################################################################################
 ### For Hierarchical Data, need to create levels within the data
 ## We want to average BMV by day
@@ -226,3 +227,52 @@ summary(turk.hhmm.data)
 unique(turk.hhmm.data$level)
 
 write.csv(turk.hhmm.data, "HHMM Turkey Data.csv", row.names = F)
+
+
+#################################################################################
+### Temp Seasonal Dates for each bird based visually on BMV data and Plots
+require(ggplot2)
+for(i in 1:length(unique(BMV.df$ID))){
+  indID <- unique(BMV.df$ID)[i]
+  
+  ind.BMV <- BMV.df %>% filter(ID == indID)
+  
+  BMV.quant <- quantile(ind.BMV$BMV, seq(0,1,.20),na.rm = T)
+  
+  ind.points <- raw.move.df %>% filter(ID == indID) %>% rename(Timestamp = timestamp)
+  
+  ind.points <-  merge(ind.points, ind.BMV, by = c("Timestamp", "ID"), all.x = T) %>%
+    dplyr::select(ID, Timestamp, location_lat, location_long, BMV) %>%
+    mutate(location_lat2 = lag(location_lat), location_long2 = lag(location_long))
+  
+  ind.BMV.plot <- ggplot(ind.BMV, aes(y = BMV, x = Timestamp)) +
+    geom_point(aes(color = BMV))  +
+    scale_color_gradientn(colours = rainbow(6), values = BMV.quant/max(BMV.quant))
+  
+  ind.points.plot <- ggplot(ind.points, aes(x = location_long, y = location_lat)) +
+    geom_segment(aes(x = location_long, y = location_lat,
+                     xend = location_long2, yend = location_lat2, color = BMV)) +
+    geom_point(aes(color = BMV)) +
+    scale_color_gradientn(colours = rainbow(6), values = BMV.quant/max(BMV.quant)) +
+    theme_classic() +
+    labs(title = paste(indID, " - Movement Track with BMV colors"))
+  ggsave
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

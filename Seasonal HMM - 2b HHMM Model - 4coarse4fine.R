@@ -1,5 +1,5 @@
 ### Load Necessary packages
-lapply(c('data.tree', 'momentuHMM', 'parallel'), require, character.only = T)
+lapply(c('data.tree', 'momentuHMM', 'parallel', 'dplyr'), require, character.only = T)
 
 #Load data and prep it for momentuHMM package
 raw.move.data <- read.csv("HHMM Turkey Data.csv", colClasses = c(level = "character")) %>%
@@ -13,7 +13,11 @@ turkData <- prepData(raw.move.data,
 #############################################
 ### Define the hierarchical HMM structure ###
 #############################################
-### define hierarchical HMM: states 1-3 = coarse state 1 (resident/foraging); states 4-6 = coarse state 2 (mobile/foraging); states 7-9 = coarse state 3 (travelling/migrating)
+### define hierarchical HMM: 
+#### states 1-4 = coarse state 1 (Wintering)
+#### states 5-8 = coarse state 2 (Dispersal)
+#### states 9-12 = coarse state 3 (PreNesting)
+#### states 13-16 = coarse state 4 (Nesting)
 hierStates <- data.tree::Node$new("turkey HHMM states")
 hierStates$AddChild("Winter")   # resident/foraging
 hierStates$Winter$AddChild("W1", state=1)
@@ -43,7 +47,9 @@ nbStates <- length(hierStates$Get("state",filterFun=data.tree::isLeaf))
 ###################################################
 ### Parameter Distributions and Starting Values ###
 ###################################################
-# data stream distributions: level 1 = coarse level (BMV_mean="gamma"); level 2 = fine level (step="gamma", angle = "wrpcauchy)
+# data stream distributions: 
+## level 1 = coarse level (BMV_mean="gamma")
+## level 2 = fine level (step="gamma", angle = "wrpcauchy")
 hierDist <- data.tree::Node$new("turkey HHMM dist")
 hierDist$AddChild("level1")
 hierDist$level1$AddChild("BMV_mean", dist="gamma")
@@ -55,7 +61,7 @@ print(hierDist,"dist")
 
 ### defining start values based on those reported by Adam et al
 BMV.mu0 <- c(75, 500, 300,1)
-BMV.sigma0 <- c(50, 100, 100,50)
+BMV.sigma0 <- c(50, 200, 100,50)
 step.mu0 <- step.sigma0 <- step.zero <- angle.con <- list()
 step.mu0[[1]] <- step.mu0[[2]] <- step.mu0[[3]] <- step.mu0[[4]] <-c(5, 20, 150, 300)
 # step.mu0[[2]] <- c(5, 20, 150) #For if you want to specify different start values
@@ -102,10 +108,10 @@ step.DM <- matrix(c(rep(c(1,0,0,0,0,0,0,0,0,0,0,0,
                           0,0,0,0,0,1,0,0,0,0,0,0,
                           0,0,0,0,0,0,1,0,0,0,0,0,
                           0,0,0,0,0,0,0,1,0,0,0,0),4),
-                    rep(c(0,0,0,0,0,0,0,0,1,1,1,1,
-                          0,0,0,0,0,0,0,0,1,1,1,0,
-                          0,0,0,0,0,0,0,0,1,1,0,0,
-                          0,0,0,0,0,0,0,0,1,0,0,0),4)),
+                    rep(c(0,0,0,0,0,0,0,0,1,0,0,0,
+                          0,0,0,0,0,0,0,0,0,1,0,0,
+                          0,0,0,0,0,0,0,0,0,0,1,0,
+                          0,0,0,0,0,0,0,0,0,0,0,1),4)),
                  nrow = 3*nbStates, byrow = T,
                  ncol = 12,
                  dimnames = list(paste0(rep(c("mean_","sd_","zero_"),each=nbStates),1:nbStates),
@@ -134,26 +140,26 @@ DM <- list(BMV_mean = BMV.DM,
 BMVworkBounds <- matrix(c(-Inf,Inf, 
                            0,Inf,
                            0,Inf,
-                           0, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf), 
+                           0,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf), 
                          nrow = ncol(BMV.DM), byrow = T,
                          dimnames = list(colnames(BMV.DM), c("lower", "upper")))
 
 stepworkBounds <- matrix(c(-Inf,Inf,
                            0,Inf,
                            0,Inf,
-                           0, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           -Inf, Inf,
-                           0, Inf,
-                           0, Inf,
-                           0, Inf), 
+                           0,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf,
+                           -Inf,Inf), 
                      nrow = ncol(step.DM), byrow = T,
                      dimnames = list(colnames(step.DM), c("lower", "upper")))
 
@@ -173,10 +179,10 @@ workBounds<-list(BMV_mean = BMVworkBounds,
 ### Specify User Defined Bounds for distributions ###
 #####################################################
 #These correspond to the actual parameter values for each row
-BMVBounds <- matrix(c(rep(c(0,Inf),4),
-                      rep(c(0,Inf),4),
-                      rep(c(0,Inf),4),
-                      rep(c(0,Inf),4),
+BMVBounds <- matrix(c(rep(c(0,1000),4),
+                      rep(c(0,1000),4),
+                      rep(c(0,1000),4),
+                      rep(c(0,1000),4),
                       rep(c(0,Inf),4),
                       rep(c(0,Inf),4),
                       rep(c(0,Inf),4),
@@ -184,15 +190,15 @@ BMVBounds <- matrix(c(rep(c(0,Inf),4),
                      nrow = 4*ncol(BMV.DM), byrow = T,
                      dimnames = list(rep(colnames(BMV.DM),each=4), c("lower", "upper")))
 
-stepBounds <- matrix(c(rep(c(0,Inf,
-                             0,Inf,
-                             0,Inf,
-                             0,Inf),4),
+stepBounds <- matrix(c(rep(c(0,5,
+                             0,100,
+                             0,200,
+                             0,400),4),
                        rep(c(0,Inf,
                              0,Inf,
                              0,Inf,
                              0,Inf),4),
-                       rep(c(0,.97,
+                       rep(c(.97,1,
                              0,.03,
                              0,.03,
                              0,.03),4)), 
@@ -224,57 +230,69 @@ Par <- getParDM(turkData,
 ### Define Hierarchical Transition Probability ###
 ##################################################
 hierFormula <- data.tree::Node$new("turkey HHMM formula")
-hierFormula$AddChild("level1", formula=~YDay)
-hierFormula$AddChild("level2", formula=~cosinor(hour, period=24))
+hierFormula$AddChild("level1", formula=~1)
+hierFormula$AddChild("level2", formula=~1)
 
 
 #number of repeats of the betas will depend on the number of covariates in the above formulas, repeats will be level specific
 hierBeta <- data.tree::Node$new("turkey beta")
-hierBeta$AddChild("level1",beta=matrix(c(0,0,-100,
-                                         -100,0,-100,
-                                         -100,-100,0,
-                                         -100,-100,-100),2,length(hierStates$children)*(length(hierStates$children)-1), byrow = T))
+hierBeta$AddChild("level1",beta=matrix(c(-.1,-.1,-100,
+                                         -100,-.1,-100,
+                                         -100,-100,-.1,
+                                         -100,-100,-100),
+                                       1,length(hierStates$children)*(length(hierStates$children)-1), byrow = T))
 hierBeta$AddChild("level2")
-hierBeta$level2$AddChild("Winter",beta=matrix(rep(c(0,0,0,
-                                                    0,0,0,
-                                                    0,0,0,
-                                                    0,0,0),3),3,length(hierStates$Winter$children)*(length(hierStates$Winter$children)-1),byrow=TRUE))
-hierBeta$level2$AddChild("Dispersal",beta=matrix(rep(c(0,0,0,
-                                                       0,0,0,
-                                                       0,0,0,
-                                                       0,0,0),3),3,length(hierStates$Dispersal$children)*(length(hierStates$Dispersal$children)-1),byrow=TRUE))
-hierBeta$level2$AddChild("PreNesting",  beta=matrix(rep(c(0,0,0,
-                                                          0,0,0,
-                                                          0,0,0,
-                                                          0,0,0),3),3,length(hierStates$PreNesting$children)*(length(hierStates$PreNesting$children)-1),byrow=TRUE))
-hierBeta$level2$AddChild("Nesting",  beta=matrix(rep(c(0,0,0,
-                                                       0,0,0,
-                                                       0,0,0,
-                                                       0,0,0),3),3,length(hierStates$Nesting$children)*(length(hierStates$Nesting$children)-1),byrow=TRUE))
+hierBeta$level2$AddChild("Winter",beta=matrix(rep(c(2,3,-3,
+                                                    2,3,-3,
+                                                    2,3,-3,
+                                                    2,3,-3),
+                                                  1),1,length(hierStates$Winter$children)*(length(hierStates$Winter$children)-1),byrow=TRUE))
+hierBeta$level2$AddChild("Dispersal",beta=matrix(rep(c(0,2,3,
+                                                       0,2,3,
+                                                       0,2,3,
+                                                       0,2,3),
+                                                     1),1,length(hierStates$Dispersal$children)*(length(hierStates$Dispersal$children)-1),byrow=TRUE))
+hierBeta$level2$AddChild("PreNesting",  beta=matrix(rep(c(1,3,1,
+                                                          1,3,1,
+                                                          1,3,1,
+                                                          1,3,1),
+                                                        1),1,length(hierStates$PreNesting$children)*(length(hierStates$PreNesting$children)-1),byrow=TRUE))
+hierBeta$level2$AddChild("Nesting",  beta=matrix(rep(c(1,-1,-3,
+                                                       1,-1,-3,
+                                                       1,-1,-3,
+                                                       1,-1,-3),
+                                                     1),1,length(hierStates$Nesting$children)*(length(hierStates$Nesting$children)-1),byrow=TRUE))
+print(hierBeta,"beta")
 
 #Fix the betas for the coarse scale to prevent switching to previous states
 hierFixBeta <- data.tree::Node$new("turkey beta")
-hierFixBeta$AddChild("level1",beta=matrix(c(NA,NA,-100,
+hierFixBeta$AddChild("level1",fixPar=matrix(c(NA,NA,-100,
                                          -100,NA,-100,
                                          -100,-100,NA,
-                                         -100,-100,-100),2, length(hierStates$children)*(length(hierStates$children)-1), byrow = T))
+                                         -100,-100,-100),
+                                         1, length(hierStates$children)*(length(hierStates$children)-1), byrow = T))
 hierFixBeta$AddChild("level2")
-hierFixBeta$level2$AddChild("Winter",beta=matrix(rep(c(NA,NA,NA,
+hierFixBeta$level2$AddChild("Winter",fixPar=matrix(rep(c(NA,NA,NA,
                                                     NA,NA,NA,
                                                     NA,NA,NA,
-                                                    NA,NA,NA),3),3,length(hierStates$Winter$children)*(length(hierStates$Winter$children)-1),byrow=TRUE))
-hierFixBeta$level2$AddChild("Dispersal",beta=matrix(rep(c(NA,NA,NA,
+                                                    NA,NA,NA),
+                                                    1),1,length(hierStates$Winter$children)*(length(hierStates$Winter$children)-1),byrow=TRUE))
+hierFixBeta$level2$AddChild("Dispersal",fixPar=matrix(rep(c(NA,NA,NA,
                                                        NA,NA,NA,
                                                        NA,NA,NA,
-                                                       NA,NA,NA),3),3,length(hierStates$Dispersal$children)*(length(hierStates$Dispersal$children)-1),byrow=TRUE))
-hierFixBeta$level2$AddChild("PreNesting",  beta=matrix(rep(c(NA,NA,NA,
+                                                       NA,NA,NA),
+                                                       1),1,length(hierStates$Dispersal$children)*(length(hierStates$Dispersal$children)-1),byrow=TRUE))
+hierFixBeta$level2$AddChild("PreNesting",  fixPar=matrix(rep(c(NA,NA,NA,
                                                           NA,NA,NA,
                                                           NA,NA,NA,
-                                                          NA,NA,NA),3),3,length(hierStates$PreNesting$children)*(length(hierStates$PreNesting$children)-1),byrow=TRUE))
-hierFixBeta$level2$AddChild("Nesting",  beta=matrix(rep(c(NA,NA,NA,
+                                                          NA,NA,NA),
+                                                          1),1,length(hierStates$PreNesting$children)*(length(hierStates$PreNesting$children)-1),byrow=TRUE))
+hierFixBeta$level2$AddChild("Nesting",  fixPar=matrix(rep(c(NA,NA,NA,
                                                        NA,NA,NA,
                                                        NA,NA,NA,
-                                                       NA,NA,NA),3),3,length(hierStates$Nesting$children)*(length(hierStates$Nesting$children)-1),byrow=TRUE))
+                                                       NA,NA,NA),
+                                                       1),1,length(hierStates$Nesting$children)*(length(hierStates$Nesting$children)-1),byrow=TRUE))
+print(hierFixBeta,"fixPar")
 
 ###################################
 ### Define Initial Distribution ###
@@ -287,15 +305,18 @@ hierDelta$level2$AddChild("Dispersal",delta=matrix(c(0,0,0),1))
 hierDelta$level2$AddChild("PreNesting",delta=matrix(c(0,0,0),1))
 hierDelta$level2$AddChild("Nesting",delta=matrix(c(0,0,0),1))
 
+print(hierDelta,"delta")
+
 #Fix the initial distribution to start in Winter
 hierFixDelta <- data.tree::Node$new("turkey HHMM delta")
-hierFixDelta$AddChild("level1",delta=matrix(c(-100, -100, -100),1))
+hierFixDelta$AddChild("level1",fixPar=matrix(c(-100, -100, -100),1))
 hierFixDelta$AddChild("level2")
-hierFixDelta$level2$AddChild("Winter",delta=matrix(c(NA,NA,NA),1))
-hierFixDelta$level2$AddChild("Dispersal",delta=matrix(c(NA,NA,NA),1))
-hierFixDelta$level2$AddChild("PreNesting",delta=matrix(c(NA,NA,NA),1))
-hierFixDelta$level2$AddChild("Nesting",delta=matrix(c(NA,NA,NA),1))
+hierFixDelta$level2$AddChild("Winter",fixPar=matrix(c(NA,NA,NA),1))
+hierFixDelta$level2$AddChild("Dispersal",fixPar=matrix(c(NA,NA,NA),1))
+hierFixDelta$level2$AddChild("PreNesting",fixPar=matrix(c(NA,NA,NA),1))
+hierFixDelta$level2$AddChild("Nesting",fixPar=matrix(c(NA,NA,NA),1))
 
+print(hierFixDelta,"fixPar")
 
 ##################################
 ### Check Model Specifications ###
@@ -307,15 +328,21 @@ checkPar0(turkData,
           Par0=Par,
           hierFormula=hierFormula,
           DM=DM, 
-          workBounds = workBounds, 
+          workBounds = workBounds,
           userBounds = userBounds,
           hierBeta=hierBeta,
           hierDelta=hierDelta,
-          fixPar=list(beta=hierFixBeta, delta=hierFixDelta))
+          fixPar=list(beta=hierFixBeta, delta=hierFixDelta)
+          )
+
 
 #################################
 ### Run the Hierarchical HHMM ###
 #################################
+#prevents working parameters from straying along boundary
+#https://github.com/bmcclintock/momentuHMM/issues/41
+prior <- function(par){sum(dnorm(par,0,10,log=TRUE))}
+
 # compute hierarchical state transition probabilities based on initial values
 iTrProbs <- getTrProbs(turkData,
                        hierStates=hierStates,
@@ -333,7 +360,7 @@ iTrProbs$level1$gamma[,,1] # tpm at first time step for level1
 lapply(iTrProbs$level2,function(x) x$gamma[,,1]) # tpm at first time step for level2
 
 print(Sys.time())
-turk.hhmm.4.4 <- fitHMM(codData,
+turk.hhmm.4.4 <- fitHMM(turkData,
                         hierStates=hierStates,
                         hierDist=hierDist,
                         hierFormula=hierFormula,
@@ -341,18 +368,48 @@ turk.hhmm.4.4 <- fitHMM(codData,
                         hierBeta=hierBeta,
                         hierDelta=hierDelta,
                         DM=DM, 
-                        workBounds = workBounds, 
+                        workBounds = workBounds,
                         userBounds = userBounds,
                         fixPar=list(beta=hierFixBeta, delta=hierFixDelta),
+                        # prior = prior,
                         ncores = detectCores()/2
                         )
 turk.hhmm.4.4
 print(Sys.time())
 
+turk.hhmm.NOWORKUSERFIX <- turk.hhmm.4.4
+#############################
+### Examine Model Results ###
+#############################
+plot(turk.hhmm.4.4,ask=FALSE)
+plotPR(turk.hhmm.4.4)
+plotStates(turk.hhmm.4.4,ask=FALSE)
 
+### most likely state sequence #######################
+states <- viterbi(turk.hhmm.4.4)
+hStates <- viterbi(turk.hhmm.4.4,hierarchical=TRUE)
+# coarse scale sequence
+coarseStates <- hStates$level1
+table(coarseStates)/length(coarseStates)
+# fine scale sequence
+fineStates <- hStates$level2
+table(fineStates)/length(fineStates)
+######################################################
 
+# stationary distributions
+stats <- stationary(hhmm, covs=data.frame(time=timeSeq))
 
+### coarse scale #####################################
+# stationary distribution
+stats[[1]]$level1[1,]
+######################################################
 
+### fine scale #######################################
+# stationary distribution
+stats[[1]]$level2
+
+# plot stationary distribution as function of time of day
+plotStationary(hhmm, plotCI=TRUE)
 
 
 
