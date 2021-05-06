@@ -237,7 +237,7 @@ for(i in 1:length(unique(BMV.df$ID))){
   
   ind.BMV <- BMV.df %>% filter(ID == indID)
   
-  BMV.quant <- quantile(ind.BMV$BMV, seq(0,1,.20),na.rm = T)
+  BMV.quant <- quantile(ind.BMV$BMV, seq(0,1,.25),na.rm = T)
   
   ind.points <- raw.move.df %>% filter(ID == indID) %>% rename(Timestamp = timestamp)
   
@@ -247,17 +247,20 @@ for(i in 1:length(unique(BMV.df$ID))){
   
   ind.BMV.plot <- ggplot(ind.BMV, aes(y = BMV, x = Timestamp)) +
     geom_point(aes(color = BMV))  +
-    scale_color_gradientn(colours = rainbow(6), values = BMV.quant/max(BMV.quant))
+    scale_color_gradientn(colours = rainbow(5), values = BMV.quant/max(BMV.quant)) +
+    theme_classic() +
+    labs(title = paste(indID, " - Time Series with BMV colors", sep = ""))
+  ggsave(plot = ind.BMV.plot, filename = paste(indID, "_TS.jpg", sep = ""), path = "./BMVPlots", device = "jpeg")
   
   ind.points.plot <- ggplot(ind.points, aes(x = location_long, y = location_lat)) +
     geom_segment(aes(x = location_long, y = location_lat,
                      xend = location_long2, yend = location_lat2, color = BMV)) +
     geom_point(aes(color = BMV)) +
-    scale_color_gradientn(colours = rainbow(6), values = BMV.quant/max(BMV.quant)) +
+    scale_color_gradientn(colours = rainbow(5), values = BMV.quant/max(BMV.quant)) +
     theme_classic() +
-    labs(title = paste(indID, " - Movement Track with BMV colors"))
-  ggsave
-    
+    labs(title = paste(indID, " - Movement Track with BMV colors", sep = ""))
+  ggsave(plot = ind.points.plot, filename = paste(indID, "_Map.jpg", sep = ""), path = "./BMVPlots", device = "jpeg")
+  
 }
 
 
